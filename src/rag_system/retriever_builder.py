@@ -24,7 +24,7 @@ def build_retriever(documents: List[Document]):
     vectorstore = Chroma(
         collection_name="split_parents",
         embedding_function=OpenAIEmbeddings(model=settings.EMBEDDING_MODEL),
-        parsist_directory=str(settings.VECTORSTORE_DIR)
+        persist_directory=str(settings.VECTORSTORE_DIR)
     )
 
     # Armazenamento para os documentos pais 

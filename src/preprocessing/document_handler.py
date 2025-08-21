@@ -108,7 +108,12 @@ def load_and_split_by_structure(markdown_path: Path) -> List[Document]:
     
     for i in range(0, len(unit_splits), 2):
         unit_title = unit_splits[i].strip()
-        unit_content = unit_splits[i+1]
+        
+        # Verifica se existe um bloco de conteúdo correspondente ao título
+        if (i + 1) < len(unit_splits):
+            unit_content = unit_splits[i + 1]
+        else:
+            unit_content = ""
 
         # Divide o conteúdo da unidade por seções (começando com '## ')
         section_splits = re.split(r'(^##\s.*)', unit_content, flags=re.MULTILINE)
