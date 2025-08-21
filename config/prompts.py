@@ -27,14 +27,14 @@ Sua saída deve ser um objeto JSON válido, sem nenhum texto ou explicação adi
 # Unidade 2: ...
 </sumario_exemplo>
 <saida_desejada_exemplo>
-{ 
-    "Unidade 1": {
-    "Capítulo 1": ["1.1 O que é a Vida?"],
-    "Capítulo 2": ["1.2 A Célula"],
-    "Capítulo 3": ["1.3 Moléculas da Vida"],
-    "Capítulo 4": ["1.4 A Água"]
-    }
-}
+{{
+  "Unidade 1": {{
+    "Capítulo 1": ["## 1.1 O que é Vida?"],
+    "Capítulo 2": ["## 1.2 A Célula"],
+    "Capítulo 3": ["## 1.3 Moléculas da Vida"],
+    "Capítulo 4": ["## 1.4 A Água"]
+  }}
+}}
 </saida_desejada_exemplo>
 </exemplo>
 

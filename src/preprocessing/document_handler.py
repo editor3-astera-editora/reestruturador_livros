@@ -5,9 +5,78 @@ from typing import List
 from langchain_core.documents import Document 
 from src.utils.logger import logger 
 
-def convert_docx_to_markdown(input_path: Path, output_path: Path):
+import docx 
+from docx.document import Document as DocumentClass 
+from docx.oxml.table import CT_Tbl 
+from docx.oxml.text.paragraph import CT_P
+
+def remove_section_from_docx(doc: DocumentClass, section_title: str):
+    """
+    Encontra um título de seção e remove todo o conteúdo a partir dele.
+    """
+    logger.infoo(f"Procurando e removendo a seção: '{section_title}'")
+    elements_to_remove = []
+    found_section = False 
+
+    # Itera sobre todos os elementos do corpo do documento (parágrafos e tabelas)
+    for element in doc.element.body:
+        if found_section:
+            elements_to_remove.append(element)
+        elif isinstance(element, CT_P):
+            p = docx.text.paragraph.Paragraph(element, doc)
+            if section_title.lower() in p.text.lower():
+                found_section = True 
+                elements_to_remove.append(element)
+        
+    if found_section:
+        for element in elements_to_remove:
+            doc.element.body.remove(element)
+        logger.info(f"Seção '{section_title}' removida com sucesso.")
+    else:
+        logger.warning(f"A seção '{section_title}' não foi encontrada no documento.")    
+
+def remove_image_urls_from_docx(doc: DocumentClass):
+    """
+    Remove parágrafos que contêm URLs de imagens e a linha de fonte correspondente.
+    """
+    logger.info("Removendo URLs de imagens e fontes do documento...")
+    paragraphs_to_remove = []
+
+    for p in doc.paragraphs:
+        # Verifica se o parágrafo contém uma URL
+        if re.search(r'https?://\S+', p.text):
+            paragraphs_to_remove.append(p)
+        # Verifica se o parágrafo começa com "Fonte:"
+        elif p.text.strip().lower().startswith('fonte:'):
+            paragraphs_to_remove.append(p)
+
+    for p in paragraphs_to_remove:
+        # A remoção de um parágrafo é feita acessando o elemento XML pai
+        parent_element = p._p.getparent()
+        if parent_element is not None:
+            parent_element.remove(p._p)
+            
+    logger.info(f"{len(paragraphs_to_remove)} parágrafos contendo URLs/fontes foram removidos.")
+
+def convert_docx_to_markdown(input_path: Path, output_path: Path, intermediate_dir: Path):
     """Converte um arquivo .docx para Markdown usando pandoc."""
     logger.info(f"Convertendo '{input_path.name}' para Markdown...")
+
+    # 1. Carregar o documento 
+    doc = docx.Document(input_path)
+
+    # 2. Aplicar as limpezas 
+    remove_section_from_docx(doc, "Exercícios resolvidos")
+    remove_image_urls_from_docx(doc)
+
+    # 3. Salva um arquivo .docx limpo temporariamente 
+    cleaned_docx_path = intermediate_dir / "cleaned_document.docx"
+    doc.save(cleaned_docx_path)
+    logger.info(f"Documento limpo salvo temporariamente em '{cleaned_docx_path}'")
+
+    # 4. Converter o documento limpo para Markdown
+    logger.info(f"Convertendo documento limpo para Markdown...")
+
     try:
         pypandoc.convert_file(
             source_file=str(input_path),

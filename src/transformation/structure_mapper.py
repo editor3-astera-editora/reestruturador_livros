@@ -35,7 +35,7 @@ def generate_structure_map(markdown_path: Path, output_path: Path) -> dict:
         structure_map = json.loads(json_content)
         
         with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(structure_map, f, ensure_ascii=False, ident=2)
+            json.dump(structure_map, f, ensure_ascii=False, indent=2)
 
         logger.info(f"Mapa da estrutura salvo em '{output_path}'")
         return structure_map
@@ -43,4 +43,3 @@ def generate_structure_map(markdown_path: Path, output_path: Path) -> dict:
         logger.error(f"Falha ao decodificar a resposta JSON do LLM. Resposta: {response.content}. Erro: {e}")
         raise 
 
-    

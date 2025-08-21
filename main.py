@@ -16,7 +16,11 @@ def run_pipeline():
     input_docx_path = settings.INPUT_DIR / settings.INPUT_FILENAME
     intermediate_md_path = settings.INTERMEDIATE_DIR / settings.MARKDOWN_FILENAME
 
-    document_handler.convert_docx_to_markdown(input_docx_path, intermediate_md_path)
+    document_handler.convert_docx_to_markdown(
+        input_docx_path, 
+        intermediate_md_path,
+        settings.INTERMEDIATE_DIR
+        )
     documents = document_handler.load_and_split_by_structure(intermediate_md_path)
 
     # --- FASE 2: CONTEXTUALIZAÇÃO (RAG) ---
