@@ -14,7 +14,7 @@ def remove_section_from_docx(doc: DocumentClass, section_title: str):
     """
     Encontra um título de seção e remove todo o conteúdo a partir dele.
     """
-    logger.infoo(f"Procurando e removendo a seção: '{section_title}'")
+    logger.info(f"Procurando e removendo a seção: '{section_title}'")
     elements_to_remove = []
     found_section = False 
 
