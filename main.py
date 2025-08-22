@@ -1,10 +1,21 @@
 import re 
+import unidecode
 from config import settings 
 from src.utils.logger import logger 
 from src.preprocessing import document_handler
 from src.rag_system import retriever_builder
 from src.transformation import structure_mapper, content_rewriter, summary_generator
 from src.assembly import document_assembler
+import pypandoc
+
+def normalize_title(title: str) -> str:
+    """Função para limpar e normalizar títulos para garantir a correspondência."""
+
+    cleaned_title = re.sub(r'^(?:#|##)\s*', '', title).strip()
+    ascii_title = unidecode.unidecode(cleaned_title)
+    normalized_title = re.sub(r'[^a-zA-Z0-9\s\.-]', '', ascii_title)
+
+    return normalized_title.lower().strip()
 
 def run_pipeline():
     """
@@ -28,7 +39,6 @@ def run_pipeline():
 
     # CORREÇÃO CENTRAL: Pré-processa o conteúdo UMA VEZ
     corrected_md_content = document_handler.preprocess_markdown_headings(original_md_content)
-
     # Usa o conteúdo corrigido para dividir o documento
     documents = document_handler.load_and_split_by_structure(corrected_md_content, intermediate_md_path.name)
     
@@ -47,41 +57,53 @@ def run_pipeline():
     structure_map = structure_mapper.generate_structure_map(corrected_md_content, structure_map_path)
 
     # 3.2 Processamento de Conteúdo
+    original_sections = {
+        normalize_title(doc.metadata['title'].split('\n')[-1]): doc.page_content
+        for doc in documents
+    }
+    logger.info(f"Dicionário de seções criado. Chaves disponíveis: {list(original_sections.keys())}")
+
     processed_content = {}
-    original_sections = {doc.metadata['title'].split('\n')[-1].strip(): doc.page_content for doc in documents}
 
     for unit_title, unit_data in structure_map.items():
         logger.info(f"Processando: {unit_title}")
         processed_content[unit_title] = {'chapters': {}}
         
         unit_original_content = ""
-        for chapter_title, sections in unit_data.items():
+        lookup_key_unit = normalize_title(unit_title)
+        if lookup_key_unit in original_sections:
+            unit_original_content += original_sections.get(lookup_key_unit, "") + "\n\n"
+        
+        for sections in unit_data.values():
              for section_title in sections:
-                 clean_title = re.sub(r'^##\s*', '', section_title).strip()
-                 if clean_title in original_sections:
-                     unit_original_content += original_sections.get(clean_title, "") + "\n\n"
-
-        # Gera as temáticas da unidade
+                 lookup_key = normalize_title(section_title)
+                 if lookup_key in original_sections:
+                     unit_original_content += original_sections.get(lookup_key, "") + "\n\n"
+        
         if unit_original_content.strip():
             processed_content[unit_title]['theme'] = summary_generator.generate_unit_theme(unit_original_content, retriever)
 
-        # Processa cada capítulo
         for chapter_title, sections in unit_data.items():
             logger.info(f"  - Processando: {chapter_title}")
             processed_content[unit_title]['chapters'][chapter_title] = {'content': {}}
             chapter_rewritten_content = ""
 
             for section_title in sections:
-                clean_title = re.sub(r'^##\s*', '', section_title).strip()
-                if clean_title in original_sections:
-                    original_text = original_sections.get(clean_title, "")
+                lookup_key = normalize_title(section_title)
+                logger.info(f"  --- Procurando pela chave normalizada: '{lookup_key}'")
+                
+                if lookup_key in original_sections:
+                    original_text = original_sections.get(lookup_key, "")
                     if original_text:
-                        logger.info(f"    - Reescrevendo seção: {clean_title}")
+                        clean_section_title = re.sub(r'^(?:#|##)\s*', '', section_title).strip()
+                        logger.info(f"    - Reescrevendo seção: {clean_section_title}")
                         rewritten_text = content_rewriter.rewrite_chunk(original_text, retriever)
-                        processed_content[unit_title]['chapters'][chapter_title]['content'][clean_title] = rewritten_text
+                        # Salva o conteúdo reescrito
+                        processed_content[unit_title]['chapters'][chapter_title]['content'][clean_section_title] = rewritten_text
                         chapter_rewritten_content += rewritten_text + "\n\n"
-
-            # Gera o resumo do capítulo
+                else:
+                    logger.warning(f"  - CHAVE NÃO ENCONTRADA (lookup_key='{lookup_key}' a partir do título '{section_title}')")
+            
             if chapter_rewritten_content.strip():
                 logger.info(f"  - Gerando resumo para: {chapter_title}")
                 summary = summary_generator.generate_chapter_summary(chapter_rewritten_content, retriever)

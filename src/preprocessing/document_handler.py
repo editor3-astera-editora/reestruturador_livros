@@ -113,46 +113,57 @@ def preprocess_markdown_headings(content: str) -> str:
 
 def load_and_split_by_structure(content: str, source_name: str) -> List[Document]:
     """
-    Divide o conteúdo de uma string Markdown em Documentos.
+    Divide o conteúdo de uma string Markdown em Documentos, associando o texto
+    ao último cabeçalho encontrado.
     """
     logger.info(f"Estruturando o arquivo Markdown: '{source_name}'")
 
-    unit_splits = re.split(r'(^#\s.*)', content, flags=re.MULTILINE)
-    documents = []
+    lines = content.split('\n')
+    sections = []
+    current_content_lines = []
+    current_title = ""
+    unit_title = ""
 
-    if unit_splits and unit_splits[0].strip() == '':
-        unit_splits = unit_splits[1:]
+    for line in lines:
+        stripped_line = line.strip()
+        # Verifica se a linha é um título de Unidade ou Seção
+        if stripped_line.startswith('# '):
+            # Salva a seção anterior antes de começar uma nova
+            if current_title and current_content_lines:
+                sections.append({'title': current_title, 'content': "\n".join(current_content_lines).strip()})
 
-    for i in range(0, len(unit_splits), 2):
-        unit_title = unit_splits[i].strip()
-        unit_content = ""
-        if (i + 1) < len(unit_splits):
-            unit_content = unit_splits[i+1]
+            unit_title = stripped_line
+            current_title = unit_title
+            current_content_lines = []
         
-        section_splits = re.split(r'(^##\s.*)', unit_content, flags=re.MULTILINE)
-        initial_content = section_splits[0].strip()
-        if initial_content:
-             doc = Document(page_content=initial_content, metadata={"source": source_name, "title": unit_title})
-             documents.append(doc)
-        
-        if len(section_splits) > 1:
-            if section_splits[0].strip() == '':
-                section_splits = section_splits[1:]
+        elif stripped_line.startswith('## '):
+            # Salva a seção anterior
+            if current_title and current_content_lines:
+                sections.append({'title': current_title, 'content': "\n".join(current_content_lines).strip()})
             
-            for j in range(0, len(section_splits), 2):
-                section_title = section_splits[j].strip()
-                section_content = ""
-                if (j + 1) < len(section_splits):
-                    section_content = section_splits[j+1].strip()
-                
-                if section_content:
-                    full_title = f"{unit_title}\n{section_title}"
-                    doc = Document(page_content=section_content, metadata={"source": source_name, "title": full_title})
-                    documents.append(doc)
+            # Começa uma nova seção, mantendo o contexto da unidade
+            current_title = f"{unit_title}\n{stripped_line}"
+            current_content_lines = []
+        else:
+            # É uma linha de conteúdo, adiciona ao bloco atual
+            current_content_lines.append(line)
+        
+    # Adiciona a última seção que estava no buffer ao final do arquivo
+    if current_title:
+        sections.append({'title': current_title, 'content': "\n".join(current_content_lines).strip()})
 
-    logger.info(f"Documento dividido em {len(documents)} seções lógicas.")
-    if not documents:
-        logger.error("NENHUMA SEÇÃO FOI ENCONTRADA! A heurística de correção de cabeçalhos pode ter falhado.")
-    return documents
-
+    # Converte as seções coletadas em Documentos do LangChain
+    documents = []
+    for sec in sections:
+        # Importante: Cria documentos mesmo para títulos sem conteúdo,
+        # mas adiciona um texto placeholder para que não sejam descartados.
+        # O conteúdo real virá da busca no dicionário `original_sections` no main.py.
+        # A principal função aqui é garantir que TODOS os títulos sejam registrados.
+        page_content = sec['content'] if sec['content'] else "Este é um título estrutural."
+        documents.append(Document(
+            page_content=page_content,
+            metadata={'source': source_name, 'title': sec['title']}
+        ))
     
+    logger.info(f"Documento dividido em {len(documents)} seções lógicas (incluindo títulos estruturais).")
+    return documents
