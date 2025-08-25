@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 
-from src.transformation import structure_mapper, content_rewriter, summary_generator
+from src.transformation import content_generator, structure_mapper, summary_generator
 
 def setup_llm_mock(MockChatOpenAI, response_content: str):
     """
@@ -60,7 +60,7 @@ def test_rewrite_chunk(MockChatOpenAI):
     mock_retriever = MagicMock()
     mock_retriever.invoke.return_value = [Document(page_content="Contexto relevante.")]
     
-    result = content_rewriter.rewrite_chunk("texto informal.", mock_retriever)
+    result = content_generator.rewrite_chunk("texto informal.", mock_retriever)
     
     mock_retriever.invoke.assert_called_once_with("texto informal.")
     assert result == "Texto formal reescrito."

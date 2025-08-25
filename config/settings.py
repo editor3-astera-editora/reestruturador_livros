@@ -28,8 +28,16 @@ CHUNK_SIZE_CHILD = 400
 CHUNK_SIZE_PARENT = 2000
 
 # --- LLM API Parameters for High Fidelity ---
-LLM_TEMPERATURE = 0.2
-LLM_TOP_P = 0.3
+LLM_TEMPERATURE = 0.5
+LLM_TOP_P = 0.5
+
+# --- PARÂMETRO DE CONTROLE DE VOLUME ---
+WORDS_PER_PAGE = 300
+TARGET_PAGES_PER_UNIT = 30
+TARGET_WORDS_PER_UNIT = WORDS_PER_PAGE * TARGET_PAGES_PER_UNIT
+
+# Freio de segurança para o loop de expansão
+MAX_EXPANSION_ITERATIONS = 4
 
 # --- Create directories if they don't exist ---
 INPUT_DIR.mkdir(parents=True, exist_ok=True)
