@@ -1,96 +1,61 @@
 import docx
+import pypandoc
 from pathlib import Path
 from src.utils.logger import logger
+from config import settings 
 import re
-
-def add_markdown_paragraph(doc, markdown_text):
-    """
-    Adiciona um parágrafo ao documento, interpretando Markdown básico como **negrito**.
-    """
-    p = doc.add_paragraph()
-    # Usa regex para encontrar texto em negrito (**texto**) e texto normal
-    parts = re.split(r'(\*\*.*?\*\*)', markdown_text)
-    for part in parts:
-        if part.startswith('**') and part.endswith('**'):
-            # Remove os asteriscos e adiciona o texto como uma "run" em negrito
-            p.add_run(part[2:-2]).bold = True
-        else:
-            p.add_run(part)
-
-def add_markdown_to_doc(doc, markdown_content):
-    """
-    Analisa um bloco de conteúdo Markdown e o adiciona ao documento .docx,
-    lidando com parágrafos, listas e tabelas.
-    """
-    lines = markdown_content.strip().split('\n')
-    in_table = False
-    table = None
-
-    for line in lines:
-        stripped_line = line.strip()
-
-        if stripped_line.startswith('#### '):
-            doc.add_heading(stripped_line.replace('#### ', ''), level=4)
-            in_table = False
-
-        # Lida com listas de bullet points
-        if stripped_line.startswith(('* ', '- ')):
-            text = stripped_line[2:]
-            doc.add_paragraph(text, style='List Bullet')
-            in_table = False
-        # Lida com tabelas
-        elif stripped_line.startswith('|') and stripped_line.endswith('|'):
-            columns = [cell.strip() for cell in stripped_line.split('|')[1:-1]]
-            if not in_table:
-                table = doc.add_table(rows=1, cols=len(columns))
-                table.style = 'Table Grid'
-                hdr_cells = table.rows[0].cells
-                for i, col_name in enumerate(columns):
-                    hdr_cells[i].text = col_name
-                in_table = True
-            # Ignora a linha de separador da tabela
-            elif not all(c.isspace() or c == '-' for c in columns):
-                 row_cells = table.add_row().cells
-                 for i, cell_text in enumerate(columns):
-                     row_cells[i].text = cell_text
-        # Parágrafos normais
-        else:
-            if stripped_line:
-                add_markdown_paragraph(doc, stripped_line)
-            in_table = False
 
 def create_final_document(processed_content: dict, output_path: Path):
     """
-    Monta o documento .docx final a partir do conteúdo de capítulo completo.
+    Monta uma string Markdown completa do livro e a converte para .docx usando pandoc e um reference.docx.
     """
-    logger.info("Montando o documento .docx final com formatação rica...")
-    doc = docx.Document()
+    logger.info("Montando o conteúdo final em formato Markdown...")
+    
+    final_markdown_lines = []
     
     for unit_title, unit_data in processed_content.items():
-        doc.add_heading(unit_title, level=1)
+        final_markdown_lines.append(f"# {unit_title}\n")
         
         if 'theme' in unit_data:
-            doc.add_heading("Temáticas da unidade", level=2)
-            doc.add_paragraph(unit_data['theme'])
+            final_markdown_lines.append(f"## Temáticas da unidade\n")
+            final_markdown_lines.append(f"{unit_data['theme']}\n")
             
         for chapter_title, chapter_data in unit_data.get('chapters', {}).items():
-            doc.add_heading(chapter_title, level=2)
+            final_markdown_lines.append(f"## {chapter_title}\n")
             
-            # O conteúdo agora é uma string única com todo o capítulo
             if 'content' in chapter_data:
-                add_markdown_to_doc(doc, chapter_data['content'])
+                # O 'content' já vem com subtítulos ###, então apenas o adicionamos.
+                final_markdown_lines.append(f"{chapter_data['content']}\n")
                 
             if 'curiosity' in chapter_data:
-                doc.add_heading("Você sabia?", level=3)
-                doc.add_paragraph(chapter_data['curiosity'])
+                final_markdown_lines.append(f"### Você sabia?\n")
+                final_markdown_lines.append(f"{chapter_data['curiosity']}\n")
 
             if 'summary' in chapter_data:
-                doc.add_heading("Resumindo", level=3)
-                add_markdown_to_doc(doc, chapter_data['summary'])
+                final_markdown_lines.append(f"### Resumindo\n")
+                final_markdown_lines.append(f"{chapter_data['summary']}\n")
+
+    final_markdown_string = "\n".join(final_markdown_lines)
+    
+    final_md_path = settings.INTERMEDIATE_DIR / "final_book.md"
+    with open(final_md_path, 'w', encoding='utf-8') as f:
+        f.write(final_markdown_string)
+    
+    logger.info(f"Arquivo Markdown final montado em '{final_md_path}'.")
+    logger.info("Convertendo o Markdown final para .docx com estilos via reference.docx...")
+
+    reference_doc_path = settings.BASE_DIR / "config" / "reference.docx"
+
     try:
-        doc.save(output_path)
+        pypandoc.convert_file(
+            source_file=str(final_md_path),
+            to='docx',
+            format='gfm',  # Informa ao pandoc que a fonte é GitHub Flavored Markdown
+            outputfile=str(output_path),
+            extra_args=[f'--reference-doc={str(reference_doc_path)}', '--toc']
+        )
         logger.info(f"Documento final salvo com sucesso em '{output_path}'")
-    except PermissionError:
-        logger.error(f"ERRO DE PERMISSÃO: Verifique se '{output_path}' não está aberto.")
+    except FileNotFoundError:
+        logger.error(f"ARQUIVO DE REFERÊNCIA NÃO ENCONTRADO: Verifique se 'reference.docx' existe em '{reference_doc_path}'")
     except Exception as e:
-        logger.error(f"Ocorreu um erro inesperado ao salvar o documento: {e}")
+        logger.error(f"Ocorreu um erro durante a conversão final para .docx com pandoc: {e}")

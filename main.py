@@ -67,8 +67,8 @@ def run_pipeline():
     for unit_title, unit_data in structure_map.items():
         logger.info(f"Processando Unidade: {unit_title}")
         processed_content[unit_title] = {'chapters': {}}
-        full_unit_text = ""
-        chapter_summaries_map = {}
+        
+        full_unit_text_for_theme = ""
 
         for chapter_title, sections in unit_data.items():
             logger.info(f"  - Gerando rascunho inicial para o Capítulo: {chapter_title}")
@@ -125,39 +125,28 @@ def run_pipeline():
 
             summary = summary_generator.generate_chapter_summary(full_chapter_text, chapter_retriever)
             processed_content[unit_title]['chapters'][chapter_title]['summary'] = summary
-            chapter_summaries_map[chapter_title] = summary
             
             resumo_capitulo = summary_generator.summarize_text(full_chapter_text)
             mapa_de_conteudo_global[chapter_title] = resumo_capitulo
-            full_unit_text += full_chapter_text + "\n\n"
+            full_unit_text_for_theme += full_chapter_text + "\n\n"
 
-        if full_unit_text.strip():
-            chapter_summaries_str = "\n\n".join(
-                f"Resumo do {title}:\n{summary}"
-                for title, summary in chapter_summaries_map.items()
-            )
-
+        if full_unit_text_for_theme.strip():
             global_retriever = retriever_builder.build_retriever(all_documents)
-            processed_content[unit_title]['theme'] = summary_generator.generate_unit_theme(
-                unit_title=unit_title,
-                chapter_summaries=chapter_summaries_str,
-                retriever=global_retriever
-            )
+            processed_content[unit_title]['theme'] = summary_generator.generate_unit_theme(unit_title, full_unit_text_for_theme, global_retriever)
 
     # FASE 5
     output_path = settings.OUTPUT_DIR / settings.OUTPUT_FILENAME
     document_assembler.create_final_document(processed_content, output_path)
     
     logger.info("--- PIPELINE CONCLUÍDO COM SUCESSO ---")
-    
+
 if __name__ == "__main__":
     if not settings.OPENAI_API_KEY or "SUA_CHAVE_API_AQUI" in settings.OPENAI_API_KEY:
         logger.error("A chave da API da OpenAI não foi configurada. Verifique seu arquivo .env")
     else:
         with get_openai_callback() as cb:
             run_pipeline()
-
-            # Formata e imprime o resumo final do custo e uso de tokens
+            
             print("\n" + "="*50)
             logger.info("--- CUSTO TOTAL DO PIPELINE ---")
             logger.info(f"Total de Tokens: {cb.total_tokens}")
