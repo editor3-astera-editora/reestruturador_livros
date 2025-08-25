@@ -1,47 +1,70 @@
+#STRUCTURE_MAPPER_PROMPT = """
+#<prompt>
+#<instrucoes>
+#<papel>Você é um especialista em organização de conteúdo educacional.</papel>
+#<tarefa>
+#Analise o sumário fornecido do livro didático original, que está dividido em Unidades e Seções.
+#Sua tarefa é agrupar as seções existentes em uma nova estrutura de 4 capítulos para cada unidade.
+#Mantenha os subtítulos de conteúdo existentes. Seções como "Resumindo" devem ser ignoradas no mapeamento.
+#Sua saída deve ser um objeto JSON válido, sem nenhum texto ou explicação adicional.
+#</tarefa>
+#<regras_saida>
+#- O JSON deve ter chaves para cada uma das 4 unidades: "Unidade 1", "Unidade 2", etc.
+#- Cada unidade deve conter 4 capítulos: "Capítulo 1", "Capítulo 2", etc.
+#- Cada capítulo deve conter uma lista dos títulos das seções originais que pertencem a ele.
+#- Seja lógico ao agrupar os temas.
+#- REGRA IMPORTANTE: Distribua as seções de forma equilibrada. Evite criar capíutlos que contenham apenas títulos estruturais (como "Introdução", "Objetivo", "Definição") sem seções de conteúdo substancial. Garanta que cada capítulo tenha uma mistura lógica de tópicos.
+#</regras_saida>
+#</instrucoes>
+#
+#<exemplo>
+#<sumario_exemplo>
+## Unidade 1: Introdução à Biologia
+### 1.1 O que é a Vida?
+### 1.2 A Célula 
+### 1.3 Moléculas da Vida 
+### 1.4 A água 
+### Resumindo a Unidade 1
+## Unidade 2: ...
+#</sumario_exemplo>
+#<saida_desejada_exemplo>
+#{{
+#  "Unidade 1": {{
+#    "Capítulo 1": ["## 1.1 O que é Vida?"],
+#    "Capítulo 2": ["## 1.2 A Célula"],
+#    "Capítulo 3": ["## 1.3 Moléculas da Vida"],
+#    "Capítulo 4": ["## 1.4 A Água"]
+#  }}
+#}}
+#</saida_desejada_exemplo>
+#</exemplo>
+#
+#<sumario_real>
+#{table_of_contents}
+#</sumario_real>
+#
+#<saida_json>
+#"""
+
 STRUCTURE_MAPPER_PROMPT = """
 <prompt>
 <instrucoes>
-<papel>Você é um especialista em organização de conteúdo educacional.</papel>
+<papel>Você é um organizador de conteúdo educacional.</papel>
 <tarefa>
-Analise o sumário fornecido do livro didático original, que está dividido em Unidades e Seções.
-Sua tarefa é agrupar as seções existentes em uma nova estrutura de 4 capítulos para cada unidade.
-Mantenha os subtítulos de conteúdo existentes. Seções como "Resumindo" devem ser ignoradas no mapeamento.
-Sua saída deve ser um objeto JSON válido, sem nenhum texto ou explicação adicional.
+Analise a lista de seções da '{unit_title}' fornecida abaixo.
+Sua tarefa é agrupar essas seções em 4 capítulos lógicos.
 </tarefa>
 <regras_saida>
-- O JSON deve ter chaves para cada uma das 4 unidades: "Unidade 1", "Unidade 2", etc.
-- Cada unidade deve conter 4 capítulos: "Capítulo 1", "Capítulo 2", etc.
-- Cada capítulo deve conter uma lista dos títulos das seções originais que pertencem a ele.
-- Seja lógico ao agrupar os temas.
-- REGRA IMPORTANTE: Distribua as seções de forma equilibrada. Evite criar capíutlos que contenham apenas títulos estruturais (como "Introdução", "Objetivo", "Definição") sem seções de conteúdo substancial. Garanta que cada capítulo tenha uma mistura lógica de tópicos.
+- Retorne APENAS um objeto JSON com 4 chaves: "Capítulo 1", "Capítulo 2", "Capítulo 3", "Capítulo 4".
+- O valor de cada chave deve ser uma lista contendo os títulos das seções que pertencem àquele capítulo.
+- Distribua as seções de forma equilibrada. Evite criar capítulos vazios.
+- Se não houver seções suficientes, distribua-as da melhor forma possível e retorne listas vazias para os capítulos restantes.
 </regras_saida>
 </instrucoes>
 
-<exemplo>
-<sumario_exemplo>
-# Unidade 1: Introdução à Biologia
-## 1.1 O que é a Vida?
-## 1.2 A Célula 
-## 1.3 Moléculas da Vida 
-## 1.4 A água 
-## Resumindo a Unidade 1
-# Unidade 2: ...
-</sumario_exemplo>
-<saida_desejada_exemplo>
-{{
-  "Unidade 1": {{
-    "Capítulo 1": ["## 1.1 O que é Vida?"],
-    "Capítulo 2": ["## 1.2 A Célula"],
-    "Capítulo 3": ["## 1.3 Moléculas da Vida"],
-    "Capítulo 4": ["## 1.4 A Água"]
-  }}
-}}
-</saida_desejada_exemplo>
-</exemplo>
-
-<sumario_real>
-{table_of_contents}
-</sumario_real>
+<lista_de_secoes_da_unidade>
+{section_list}
+</lista_de_secoes_da_unidade>
 
 <saida_json>
 """

@@ -21,6 +21,7 @@ OUTPUT_FILENAME = "livro_reestruturado.docx"
 # --- LLM and Embedding Models ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LLM_MODEL = "gpt-4o"
+LLM_MODEL_STRUCTURE = "gpt-3.5-turbo" 
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 # --- RAG Configuration ---
