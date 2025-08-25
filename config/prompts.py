@@ -122,6 +122,25 @@ Retorne sua resposta como uma lista JSON de strings. Exemplo: ["Concreto Protend
 <saida_json>
 """
 
+#EXPANSION_GENERATOR_PROMPT = """
+#<prompt>
+#<papel>Você é um autor especialista com a tarefa de aprofundar um tópico específico.</papel>
+#<contexto_geral>
+#Os seguintes tópicos já foram abordados em detalhe no livro e NÃO devem ser explicados novamente:
+#<topicos_ja_abordados>
+#{mapa_de_conteudo_global}
+#</topicos_ja_abordados>
+#</contexto_geral>
+#<regras>
+#<regra prioridade="altissima">Sua tarefa é escrever um ou dois parágrafos detalhados e técnicos sobre o subtópico: "{topic_to_expand}".</regra>
+#<regra>O novo texto deve adicionar detalhes, exemplos ou dados novos, aprofundando o que já foi apresentado no <texto_base_do_capitulo>.</regra>
+#<regra>NÃO REPITA informações já descritas nos <topicos_ja_abordados>.</regra>
+#<regra>Mantenha o mesmo tom acadêmico e impessoal do texto base.</regra>
+#</regras>
+#<texto_base_do_capitulo>{base_text}</texto_base_do_capitulo>
+#<paragrafos_expandidos>
+#"""
+
 EXPANSION_GENERATOR_PROMPT = """
 <prompt>
 <papel>Você é um autor especialista com a tarefa de aprofundar um tópico específico.</papel>
@@ -133,26 +152,40 @@ Os seguintes tópicos já foram abordados em detalhe no livro e NÃO devem ser e
 </contexto_geral>
 <regras>
 <regra prioridade="altissima">Sua tarefa é escrever um ou dois parágrafos detalhados e técnicos sobre o subtópico: "{topic_to_expand}".</regra>
-<regra>O novo texto deve adicionar detalhes, exemplos ou dados novos, aprofundando o que já foi apresentado no <texto_base_do_capitulo>.</regra>
+<regra>O novo texto deve adicionar detalhes, exemplos ou dados novos, aprofundando o que já foi apresentado no <texto_base_da_secao>.</regra>
 <regra>NÃO REPITA informações já descritas nos <topicos_ja_abordados>.</regra>
 <regra>Mantenha o mesmo tom acadêmico e impessoal do texto base.</regra>
 </regras>
-<texto_base_do_capitulo>{base_text}</texto_base_do_capitulo>
+<texto_base_da_secao>{base_text}</texto_base_da_secao>
 <paragrafos_expandidos>
 """
 
-INTEGRATION_PROMPT = """
-Incorpore os <paragrafos_de_expansao> a seguir no <texto_base_do_capitulo>. Encontre os locais mais lógicos e naturais para inserir os novos parágrafos, ajustando as frases de transição se necessário para garantir que o texto final seja perfeitamente coeso e fluido. Retorne o capítulo completo e atualizado em formato Markdown.
+#INTEGRATION_PROMPT = """
+#Incorpore os <paragrafos_de_expansao> a seguir no <texto_base_do_capitulo>. Encontre os locais mais lógicos e naturais para inserir os novos parágrafos, ajustando as frases de transição se necessário para garantir que o texto final seja perfeitamente coeso e fluido. Retorne o capítulo completo e atualizado em formato Markdown.
+#
+#<texto_base_do_capitulo>
+#{base_text}
+#</texto_base_do_capitulo>
+#
+#<paragrafos_de_expansao>
+#{expansion_paragraphs}
+#</paragrafos_de_expansao>
+#
+#<capitulo_completo_e_integrado>
+#"""
 
-<texto_base_do_capitulo>
+INTEGRATION_PROMPT = """
+Incorpore os <paragrafos_de_expansao> a seguir no <texto_base_da_secao>. Encontre os locais mais lógicos e naturais para inserir os novos parágrafos, ajustando as frases de transição se necessário para garantir que o texto final seja perfeitamente coeso e fluido. Retorne a seção completa e atualizada em formato Markdown, preservando toda a formatação original (tabelas, listas, etc.).
+
+<texto_base_da_secao>
 {base_text}
-</texto_base_do_capitulo>
+</texto_base_da_secao>
 
 <paragrafos_de_expansao>
 {expansion_paragraphs}
 </paragrafos_de_expansao>
 
-<capitulo_completo_e_integrado>
+<secao_completa_e_integrada>
 """
 
 UNIT_THEME_GENERATOR_PROMPT = """

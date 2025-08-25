@@ -72,8 +72,7 @@ def run_pipeline():
         full_unit_text_for_theme = ""
 
         for chapter_title, sections in unit_data.items():
-            # --- GERAÇÃO DO RASCUNHO INICIAL ---
-            logger.info(f"  - Gerando rascunho inicial para o Capítulo: {chapter_title}")
+            logger.info(f"  - Preparando Capítulo: {chapter_title}")
             
             chapter_docs = [original_sections_map[normalize_title(s)] for s in sections if normalize_title(s) in original_sections_map]
             if not chapter_docs:
@@ -81,58 +80,58 @@ def run_pipeline():
                 continue
             
             chapter_retriever = retriever_builder.build_retriever(chapter_docs)
-            initial_chapter_sections = {}
-
+            
+            final_chapter_sections = {}
+            
+            # LÓGICA DE GERAÇÃO E EXPANSÃO (SEÇÃO POR SEÇÃO)
             for section_title in sections:
                 clean_section_title = re.sub(r'^(?:#|##)\s*', '', section_title).strip()
                 lookup_key = normalize_title(section_title)
                 
-                if lookup_key in original_sections_map:
-                    original_doc = original_sections_map[lookup_key]
-                    text_for_generation = original_doc.page_content
-                    # Se o conteúdo for um placeholder, usa o próprio título como base para a geração
-                    if text_for_generation == "TÍTULO ESTRUTURAL":
-                        logger.info(f"    - Gerando conteúdo a partir do título para a seção estrutural: {clean_section_title}")
-                        text_for_generation = clean_section_title
-                    else:
-                        logger.info(f"    - Gerando texto para a seção: {clean_section_title}")
+                if lookup_key not in original_sections_map:
+                    continue
 
-                    initial_chapter_sections[clean_section_title] = content_generator.generate_section(
-                        sumario_completo=full_book_summary, 
-                        capitulo_atual=chapter_title, 
-                        subtitulo_atual=clean_section_title,
-                        texto_original_da_secao=text_for_generation, 
-                        retriever_do_capitulo=chapter_retriever
-                    )
+                original_doc = original_sections_map[lookup_key]
+                text_for_generation = original_doc.page_content
+                if text_for_generation == "TÍTULO ESTRUTURAL":
+                    text_for_generation = clean_section_title
 
-            full_chapter_text = "\n\n".join(f"### {title}\n{text}" for title, text in initial_chapter_sections.items())
-            
-            # --- LOOP DE EXPANSÃO CONTROLADA ---
-            word_count = len(full_chapter_text.split())
-            target_words_per_chapter = settings.TARGET_WORDS_PER_UNIT / len(unit_data) if len(unit_data) > 0 else 0
-            
-            for i in range(settings.MAX_EXPANSION_ITERATIONS):
-                if word_count >= target_words_per_chapter:
-                    logger.info(f"  - Meta de palavras para o capítulo atingida. Palavras: {word_count}")
-                    break
-                logger.info(f"  - Iteração de Expansão [{i+1}/{settings.MAX_EXPANSION_ITERATIONS}]. Palavras: {word_count}/{int(target_words_per_chapter)}")
-                
-                topics_to_expand = content_generator.identify_expansion_topics(full_chapter_text)
-                if not topics_to_expand:
-                    logger.info("    - Nenhuma nova oportunidade de expansão encontrada.")
-                    break
-                
-                logger.info(f"    - Tópicos para expandir: {topics_to_expand}")
-                new_paragraphs = {}
-                for topic in topics_to_expand:
-                    new_paragraphs[topic] = content_generator.generate_expansion_paragraph(topic, full_chapter_text, mapa_de_conteudo_global)
-                
-                full_chapter_text = content_generator.integrate_expansions(full_chapter_text, new_paragraphs)
-                word_count = len(full_chapter_text.split())
+                # 1. GERA O RASCUNHO INICIAL DA SEÇÃO
+                logger.info(f"    - Gerando rascunho para a seção: {clean_section_title}")
+                generated_section_text = content_generator.generate_section(
+                    sumario_completo=full_book_summary, capitulo_atual=chapter_title, subtitulo_atual=clean_section_title,
+                    texto_original_da_secao=text_for_generation, retriever_do_capitulo=chapter_retriever
+                )
+
+                # 2. INICIA O LOOP DE EXPANSÃO PARA A SEÇÃO ATUAL
+                word_count = len(generated_section_text.split())
+                target_words_per_section = (settings.TARGET_WORDS_PER_UNIT / len(unit_data)) / len(sections) if len(sections) > 0 else 250
+
+                for i in range(settings.MAX_EXPANSION_ITERATIONS):
+                    if word_count >= target_words_per_section:
+                        break
+                    
+                    logger.info(f"      - Expansão da seção '{clean_section_title}' [{i+1}/{settings.MAX_EXPANSION_ITERATIONS}].")
+                    
+                    topics_to_expand = content_generator.identify_expansion_topics(generated_section_text)
+                    if not topics_to_expand:
+                        break
+
+                    new_paragraphs = {}
+                    for topic in topics_to_expand:
+                        new_paragraphs[topic] = content_generator.generate_expansion_paragraph(topic, generated_section_text, mapa_de_conteudo_global)
+                    
+                    generated_section_text = content_generator.integrate_expansions(generated_section_text, new_paragraphs)
+                    word_count = len(generated_section_text.split())
+
+                final_chapter_sections[clean_section_title] = generated_section_text
+
+            # 3. MONTA O TEXTO COMPLETO DO CAPÍTULO A PARTIR DAS SEÇÕES JÁ FINALIZADAS
+            full_chapter_text = "\n\n".join(f"### {title}\n{text}" for title, text in final_chapter_sections.items())
 
             processed_content[unit_title]['chapters'][chapter_title] = {'content': full_chapter_text}
             
-            # --- ENRIQUECIMENTO FINAL DO CAPÍTULO ---
+            # --- Enriquecimento Final do Capítulo ---
             curiosity = content_generator.generate_curiosities(full_chapter_text)
             if curiosity and curiosity.get("curiosidade"):
                 processed_content[unit_title]['chapters'][chapter_title]['curiosity'] = curiosity["curiosidade"]
@@ -140,12 +139,10 @@ def run_pipeline():
             summary = summary_generator.generate_chapter_summary(full_chapter_text, chapter_retriever)
             processed_content[unit_title]['chapters'][chapter_title]['summary'] = summary
             
-            # ATUALIZA O MAPA GLOBAL DE CONTEÚDO
             resumo_capitulo = summary_generator.summarize_text(full_chapter_text)
             mapa_de_conteudo_global[chapter_title] = resumo_capitulo
             full_unit_text_for_theme += full_chapter_text + "\n\n"
 
-        # Gera o tema da unidade com base no conteúdo final e expandido
         if full_unit_text_for_theme.strip():
             global_retriever = retriever_builder.build_retriever(all_documents)
             processed_content[unit_title]['theme'] = summary_generator.generate_unit_theme(unit_title, full_unit_text_for_theme, global_retriever)
