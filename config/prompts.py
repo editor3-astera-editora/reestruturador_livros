@@ -85,7 +85,7 @@ Sua tarefa atual é escrever uma seção específica do <titulo_do_capitulo_atua
 <regra>ESTRUTURA E FORMATAÇÃO:
 1.  **Priorize o Texto Corrido:** O corpo principal deve ser em parágrafos coesos.
 2.  **Use Subtítulos Internos:** Para seções mais longas, quebre o texto em subtítulos internos (usando a sintaxe `#### Meu Subtítulo Interno`) para organizar o conteúdo e melhorar a leitura.
-3.  **Use Listas com Moderação:** Para apresentar classificações, listas de itens ou etapas de um processo, utilize uma lista (bullet points com `*` ou `-`). Use este recurso de forma controlada, apenas quando agregar valor didático real.
+3.  **Use Listas com Moderação:** Para apresentar classificações, listas de itens ou etapas de um processo, utilize uma lista (bullet points com `*` ou `-`). Use este recurso de forma controlada, apenas quando agregar valor didático real ou o texto estiver demasiadamente longo.
 4.  **Use Tabelas:** Quando for apropriado para comparar conceitos (ex: tipos de materiais e suas propriedades), GERE uma tabela em formato Markdown.
 </regra>
 <regra>Sua saída deve ser APENAS o texto da seção. Não inclua o título da seção nem preâmbulos.</regra>
@@ -187,6 +187,8 @@ Incorpore os <paragrafos_de_expansao> a seguir no <texto_base_da_secao>. Encontr
 
 <secao_completa_e_integrada>
 """
+
+
 
 UNIT_THEME_GENERATOR_PROMPT = """
 <prompt>
